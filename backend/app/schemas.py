@@ -1,8 +1,9 @@
 from typing import List, Optional, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class LandmarkPoint(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     x: float
     y: float
     z: float
@@ -31,11 +32,10 @@ class LetterPredictRequest(BaseModel):
 class WordPredictRequest(BaseModel):
     """
     Request payload untuk endpoint POST /api/predict/word.
-    Dapat menerima urutan 30 bingkai fitur (30 x 63) atau bingkai tunggal
-    untuk diekstraksi dan ditambahkan ke buffer urutan.
+    Dapat menerima urutan bingkai fitur beserta bingkai kamera terbaru.
     """
     sequence_features: Optional[List[List[float]]] = Field(
-        None, description="Urutan 30 bingkai x 63 fitur landmark ternormalisasi"
+        None, description="Urutan bingkai x 63 fitur landmark ternormalisasi"
     )
     image_base64: Optional[str] = Field(
         None, description="Bingkai gambar kamera dalam format Base64 untuk diekstraksi"
@@ -58,4 +58,3 @@ class PredictResponse(BaseModel):
     landmarks: List[LandmarkPoint] = []
     normalized_features: List[float] = []
     message: Optional[str] = None
-

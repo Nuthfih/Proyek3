@@ -22,6 +22,46 @@ const HAND_CONNECTIONS = [
   [0, 17],
 ];
 
+const SIBI_LETTER_GUIDE = [
+  { label: 'A', desc: 'Kepalan tangan, ibu jari menempel tegak di sisi telunjuk' },
+  { label: 'B', desc: 'Keempat jari lurus rapat ke atas, ibu jari ditekuk di telapak' },
+  { label: 'C', desc: 'Kelima jari melengkung membentuk huruf C' },
+  { label: 'D', desc: 'Telunjuk lurus ke atas, 3 jari lain menyentuh ibu jari' },
+  { label: 'E', desc: 'Kelima jari ditekuk merapat ke telapak tangan' },
+  { label: 'F', desc: 'Ujung telunjuk & ibu jari bertemu, 3 jari lain lurus ke atas' },
+  { label: 'G', desc: 'Telunjuk dan ibu jari lurus mengarah ke samping' },
+  { label: 'H', desc: 'Telunjuk dan jari tengah lurus rapat ke samping' },
+  { label: 'I', desc: 'Jari kelingking lurus ke atas, 4 jari lainnya mengepal' },
+  { label: 'J', desc: 'Jari kelingking mengayun membentuk lengkungan J' },
+  { label: 'K', desc: 'Telunjuk & tengah lurus terbuka, ibu jari di tengahnya' },
+  { label: 'L', desc: 'Telunjuk lurus ke atas & ibu jari ke samping (90°)' },
+  { label: 'M', desc: 'Ibu jari diselipkan di bawah 3 jari (telunjuk, tengah, manis)' },
+  { label: 'N', desc: 'Ibu jari diselipkan di bawah 2 jari (telunjuk & tengah)' },
+  { label: 'O', desc: 'Semua ujung jari bertemu ibu jari membentuk bulatan O' },
+  { label: 'P', desc: 'Seperti huruf K namun diarahkan condong ke bawah' },
+  { label: 'Q', desc: 'Telunjuk dan ibu jari mengarah ke bawah' },
+  { label: 'R', desc: 'Jari telunjuk dan jari tengah lurus menyilang' },
+  { label: 'S', desc: 'Kepalan rapat, ibu jari menyilang di depan jari-jari' },
+  { label: 'T', desc: 'Ibu jari diselipkan di antara telunjuk dan jari tengah' },
+  { label: 'U', desc: 'Jari telunjuk dan jari tengah lurus rapat ke atas' },
+  { label: 'V', desc: 'Jari telunjuk dan jari tengah lurus terbuka (V)' },
+  { label: 'W', desc: 'Tiga jari (telunjuk, tengah, manis) lurus terbuka (W)' },
+  { label: 'X', desc: 'Jari telunjuk ditekuk membentuk kait' },
+  { label: 'Y', desc: 'Ibu jari & kelingking terentang, 3 jari tengah ditekuk' },
+  { label: 'Z', desc: 'Jari telunjuk menggambar pola huruf Z di udara' },
+];
+
+const SIBI_WORD_GUIDE = [
+  { label: 'HALO', desc: 'Telapak tangan terbuka (5 jari) digerakkan melambai ke kiri-kanan' },
+  { label: 'SAYA', desc: 'Jari telunjuk lurus diarahkan menunjuk ke dada sendiri' },
+  { label: 'MAKAN', desc: 'Ujung kelima jari menguncup rapat (O) digerakkan ke arah mulut' },
+  { label: 'MINUM', desc: 'Tangan membentuk huruf C (seperti memegang gelas) ke arah mulut' },
+  { label: 'TOLONG', desc: 'Ibu jari tegak di atas kepalan (A) digerakkan naik ke atas' },
+  { label: 'TERIMA KASIH', desc: 'Telapak tangan terbuka dari dekat dagu digerakkan maju ke depan' },
+  { label: 'SAMA-SAMA', desc: 'Ibu jari & kelingking terbuka (Y) digerakkan maju-mundur' },
+  { label: 'SELAMAT PAGI', desc: 'Telapak tangan terbuka diangkat menyapa dari bawah ke atas' },
+];
+
 export default function TranslatorPage({ onViewAllHistory }) {
   const videoRef = useRef(null);
   const overlayCanvasRef = useRef(null);
@@ -199,16 +239,16 @@ export default function TranslatorPage({ onViewAllHistory }) {
 
       try {
         const capCanvas = captureCanvasRef.current;
-        capCanvas.width = 320;
-        capCanvas.height = 240;
+        capCanvas.width = 480;
+        capCanvas.height = 360;
         const capCtx = capCanvas.getContext('2d');
         // Flip horizontal agar natural seperti cermin
         capCtx.save();
         capCtx.scale(-1, 1);
-        capCtx.drawImage(video, -320, 0, 320, 240);
+        capCtx.drawImage(video, -480, 0, 480, 360);
         capCtx.restore();
 
-        const imageBase64 = capCanvas.toDataURL('image/jpeg', 0.72);
+        const imageBase64 = capCanvas.toDataURL('image/jpeg', 0.80);
 
         if (mode === 'letter') {
           const res = await predictLetter({
@@ -227,20 +267,20 @@ export default function TranslatorPage({ onViewAllHistory }) {
             setDetectedLabel(res.label);
             setConfidence(Math.round((res.confidence || 0) * 100));
 
-            // Penyangga huruf (stabil selama 3 siklus berturut-turut)
+            // Penyangga huruf (stabil selama 2 siklus berturut-turut)
             stabilityBufferRef.current.push(res.label);
-            if (stabilityBufferRef.current.length > 4) {
+            if (stabilityBufferRef.current.length > 3) {
               stabilityBufferRef.current.shift();
             }
             const allSame =
-              stabilityBufferRef.current.length >= 3 &&
+              stabilityBufferRef.current.length >= 2 &&
               stabilityBufferRef.current.every((val) => val === res.label);
 
             const nowMs = Date.now();
             if (
               allSame &&
               (lastAppendedRef.current.label !== res.label ||
-                nowMs - lastAppendedRef.current.time > 1800)
+                nowMs - lastAppendedRef.current.time > 1600)
             ) {
               setTranslatedText((prev) => prev + res.label);
               lastAppendedRef.current = { label: res.label, time: nowMs };
@@ -249,41 +289,43 @@ export default function TranslatorPage({ onViewAllHistory }) {
             stabilityBufferRef.current = [];
           }
         } else {
-          // Mode Kata Dasar (30 bingkai urutan)
-          const extractRes = await predictWord({ imageBase64, threshold: 0.70 });
+          // Mode Kata Dasar: kirim citra terbaru + riwayat sequence sekaligus dalam 1 request
+          const wordRes = await predictWord({
+            imageBase64,
+            sequenceFeatures: wordBufferRef.current.slice(-29),
+            threshold: 0.70,
+          });
           if (!isRunning) return;
 
-          setHandDetected(extractRes.hand_detected);
-          setLatencyMs(extractRes.inference_time_ms || 0);
+          setHandDetected(wordRes.hand_detected);
+          setLatencyMs(wordRes.inference_time_ms || 0);
           setFps(Math.min(30, Math.round(currentFps)));
-          drawLandmarksOnCanvas(extractRes.landmarks);
+          drawLandmarksOnCanvas(wordRes.landmarks);
 
-          if (extractRes.hand_detected && extractRes.normalized_features?.length === 63) {
-            wordBufferRef.current.push(extractRes.normalized_features);
+          if (wordRes.hand_detected && wordRes.normalized_features?.length === 63) {
+            wordBufferRef.current.push(wordRes.normalized_features);
             if (wordBufferRef.current.length > 30) {
               wordBufferRef.current.shift();
             }
 
-            if (wordBufferRef.current.length === 30) {
-              const wordRes = await predictWord({
-                sequenceFeatures: wordBufferRef.current,
-                threshold: 0.70,
-              });
-              if (wordRes.label) {
-                setDetectedLabel(wordRes.label);
-                setConfidence(Math.round((wordRes.confidence || 0) * 100));
-                const nowMs = Date.now();
-                if (
-                  lastAppendedRef.current.label !== wordRes.label ||
-                  nowMs - lastAppendedRef.current.time > 2500
-                ) {
-                  setTranslatedText((prev) =>
-                    prev ? `${prev} ${wordRes.label}` : wordRes.label
-                  );
-                  lastAppendedRef.current = { label: wordRes.label, time: nowMs };
-                }
+            if (wordRes.label) {
+              setDetectedLabel(wordRes.label);
+              setConfidence(Math.round((wordRes.confidence || 0) * 100));
+              const nowMs = Date.now();
+              if (
+                lastAppendedRef.current.label !== wordRes.label ||
+                nowMs - lastAppendedRef.current.time > 2200
+              ) {
+                setTranslatedText((prev) =>
+                  prev ? `${prev} ${wordRes.label}` : wordRes.label
+                );
+                lastAppendedRef.current = { label: wordRes.label, time: nowMs };
               }
-              wordBufferRef.current = wordBufferRef.current.slice(15);
+            }
+          } else if (!wordRes.hand_detected) {
+            // Kosongkan buffer urutan jika tangan diturunkan dari kamera
+            if (wordBufferRef.current.length > 0) {
+              wordBufferRef.current = wordBufferRef.current.slice(-4);
             }
           }
         }
@@ -548,10 +590,25 @@ export default function TranslatorPage({ onViewAllHistory }) {
                     ? `Huruf ${detectedLabel} (SIBI)`
                     : `Kata "${detectedLabel}" (SIBI)`}
                 </div>
-                <div className="mt-0.5 text-xs text-slate-500">
-                  {mode === 'letter'
-                    ? 'Jalur Abjad • Gestur Statis (63 Fitur)'
-                    : 'Jalur Kata Dasar • Gestur Dinamis (30 Bingkai)'}
+                <div className="mt-0.5 text-xs text-slate-600">
+                  {detectedLabel === '-'
+                    ? mode === 'letter'
+                      ? 'Peragakan salah satu huruf Abjad SIBI (A–Z) di depan kamera'
+                      : 'Peragakan gerakan Kata Dasar SIBI di depan kamera'
+                    : (mode === 'letter'
+                        ? SIBI_LETTER_GUIDE.find((g) => g.label === detectedLabel)?.desc
+                        : SIBI_WORD_GUIDE.find((g) => g.label === detectedLabel)?.desc) ||
+                      'Gestur SIBI terdeteksi'}
+                </div>
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <span className="rounded bg-teal-100 px-2 py-0.5 text-[10px] font-semibold text-teal-800">
+                    {mode === 'letter' ? 'Abjad Tunggal' : 'Kata Dasar'}
+                  </span>
+                  {detectedLabel !== '-' && (
+                    <span className="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                      • Status Valid
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -686,6 +743,82 @@ export default function TranslatorPage({ onViewAllHistory }) {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* ================= PANEL DAFTAR GESTUR & PANDUAN SIBI ================= */}
+      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900">
+              Daftar Gestur & Panduan SIBI ({mode === 'letter' ? 'Mode Abjad A–Z' : 'Mode Kata Dasar'})
+            </h2>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Peragakan posisi jari di bawah ini di depan kamera. Kartu akan menyala hijau saat isyarat Anda terdeteksi.
+            </p>
+          </div>
+          <div className="inline-flex rounded-lg bg-slate-100 p-1">
+            <button
+              type="button"
+              onClick={() => setMode('letter')}
+              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+                mode === 'letter'
+                  ? 'bg-teal-700 text-white'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Abjad (26 Huruf)
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('word')}
+              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+                mode === 'word'
+                  ? 'bg-teal-700 text-white'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Kata Dasar (8 Kata)
+            </button>
+          </div>
+        </div>
+
+        <div
+          className={`mt-4 grid gap-2.5 ${
+            mode === 'letter'
+              ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6'
+              : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+          }`}
+        >
+          {(mode === 'letter' ? SIBI_LETTER_GUIDE : SIBI_WORD_GUIDE).map((g) => {
+            const isDetected = detectedLabel === g.label;
+            return (
+              <div
+                key={g.label}
+                className={`flex items-start gap-2.5 rounded-xl border p-3 transition ${
+                  isDetected
+                    ? 'border-teal-600 bg-teal-50 ring-2 ring-teal-500/30'
+                    : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100/80'
+                }`}
+              >
+                <span
+                  className={`flex h-8 min-w-[32px] shrink-0 items-center justify-center rounded-lg px-2 text-xs font-extrabold ${
+                    isDetected
+                      ? 'bg-teal-700 text-white'
+                      : 'bg-white text-teal-800 border border-slate-200'
+                  }`}
+                >
+                  {g.label}
+                </span>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-900">
+                    {mode === 'letter' ? `Huruf ${g.label}` : g.label}
+                  </div>
+                  <p className="mt-0.5 text-[11px] leading-snug text-slate-600">{g.desc}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

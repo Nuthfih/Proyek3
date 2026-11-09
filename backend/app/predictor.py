@@ -222,44 +222,107 @@ class SignPredictorManager:
 
     @staticmethod
     def _heuristic_letter(features_63: np.ndarray) -> Tuple[str, float]:
-        """Fallback aturan jari dasar agar UI dapat langsung diuji sebelum model dilatih."""
+        """Klasifikasi geometris 21 landmark tangan untuk Abjad SIBI sebelum model kustom dilatih."""
         pts = features_63.reshape(21, 3)
-        # Cek jari terangkat (ujung jari lebih tinggi / y lebih kecil dari sendi PIP)
-        index_up = pts[8, 1] < pts[6, 1]
-        middle_up = pts[12, 1] < pts[10, 1]
-        ring_up = pts[16, 1] < pts[14, 1]
-        pinky_up = pts[20, 1] < pts[18, 1]
-        thumb_out = abs(pts[4, 0] - pts[2, 0]) > 0.22
+
+        # Status jari lurus ke atas (ujung jari lebih tinggi / nilai y lebih kecil dari sendi PIP)
+        index_up = pts[8, 1] < pts[6, 1] - 0.04
+        middle_up = pts[12, 1] < pts[10, 1] - 0.04
+        ring_up = pts[16, 1] < pts[14, 1] - 0.04
+        pinky_up = pts[20, 1] < pts[18, 1] - 0.04
+        thumb_out = abs(pts[4, 0] - pts[2, 0]) > 0.20
+        thumb_up = pts[4, 1] < pts[2, 1] - 0.12
+
+        # Jarak ujung ibu jari (4) ke ujung telunjuk (8) dan jari tengah (12)
+        dist_thumb_index = float(np.linalg.norm(pts[4, :2] - pts[8, :2]))
+        dist_thumb_middle = float(np.linalg.norm(pts[4, :2] - pts[12, :2]))
 
         up_count = sum([index_up, middle_up, ring_up, pinky_up])
-        if up_count == 0 and thumb_out:
-            return "A", 0.92
-        if up_count == 4 and not thumb_out:
-            return "B", 0.94
-        if index_up and not middle_up and not ring_up and not pinky_up:
-            return "D", 0.90
-        if not index_up and not middle_up and not ring_up and pinky_up:
-            return "I", 0.91
-        if index_up and not middle_up and not ring_up and not pinky_up and thumb_out:
-            return "L", 0.93
+
+        # F: Ujung telunjuk & ibu jari menyentuh, 3 jari lainnya (tengah, manis, kelingking) lurus
+        if not index_up and middle_up and ring_up and pinky_up and dist_thumb_index < 0.25:
+            return "F", 0.93
+
+        # B: Keempat jari lurus ke atas
+        if up_count == 4:
+            return "B", 0.95
+
+        # W: Tiga jari (telunjuk, tengah, manis) lurus ke atas, kelingking ditekuk
+        if index_up and middle_up and ring_up and not pinky_up:
+            return "W", 0.93
+
+        # K / V / U / R: Dua jari (telunjuk & tengah) lurus ke atas
         if index_up and middle_up and not ring_up and not pinky_up:
             dist_uv = abs(pts[8, 0] - pts[12, 0])
-            return ("V", 0.92) if dist_uv > 0.15 else ("U", 0.89)
-        if index_up and middle_up and ring_up and not pinky_up:
-            return "W", 0.91
-        if not index_up and not middle_up and not ring_up and pinky_up and thumb_out:
-            return "Y", 0.90
-        return "S", 0.85
+            # R: Jari telunjuk dan tengah menyilang
+            if pts[8, 0] > pts[12, 0] + 0.02:
+                return "R", 0.90
+            # K: Ibu jari naik di antara telunjuk & tengah
+            if thumb_up and dist_uv > 0.12:
+                return "K", 0.91
+            # V vs U: Terbuka lebar vs rapat
+            if dist_uv > 0.14:
+                return "V", 0.94
+            return "U", 0.92
+
+        # L vs D: Hanya jari telunjuk lurus ke atas
+        if index_up and not middle_up and not ring_up and not pinky_up:
+            if thumb_out:
+                return "L", 0.94
+            return "D", 0.92
+
+        # Y vs I: Hanya jari kelingking lurus ke atas
+        if not index_up and not middle_up and not ring_up and pinky_up:
+            if thumb_out:
+                return "Y", 0.93
+            return "I", 0.92
+
+        # O vs C vs A vs S vs E (Saat keempat jari tidak lurus penuh ke atas)
+        if up_count == 0:
+            if dist_thumb_index < 0.22 and dist_thumb_middle < 0.25:
+                return "O", 0.91
+            if 0.22 <= dist_thumb_index <= 0.45 and pts[8, 1] < pts[5, 1]:
+                return "C", 0.89
+            if thumb_out or thumb_up:
+                return "A", 0.93
+            if pts[8, 1] > pts[5, 1] + 0.12:
+                return "S", 0.90
+            return "E", 0.88
+
+        return "A", 0.86
 
     @staticmethod
     def _heuristic_word(seq_30x63: np.ndarray) -> Tuple[str, float]:
-        """Fallback aturan gerakan dasar kata sebelum model LSTM dilatih."""
+        """Klasifikasi geometris urutan 30 bingkai untuk Kata Dasar SIBI sebelum LSTM dilatih."""
         first = seq_30x63[0].reshape(21, 3)
+        mid = seq_30x63[len(seq_30x63) // 2].reshape(21, 3)
         last = seq_30x63[-1].reshape(21, 3)
-        movement = float(np.linalg.norm(last - first))
-        if movement > 0.45:
-            return "HALO", 0.91
-        if movement > 0.25:
-            return "TERIMA KASIH", 0.88
-        return "SAYA", 0.86
+
+        pts = last
+        index_up = pts[8, 1] < pts[6, 1] - 0.04
+        middle_up = pts[12, 1] < pts[10, 1] - 0.04
+        ring_up = pts[16, 1] < pts[14, 1] - 0.04
+        pinky_up = pts[20, 1] < pts[18, 1] - 0.04
+        thumb_out = abs(pts[4, 0] - pts[2, 0]) > 0.20
+        up_count = sum([index_up, middle_up, ring_up, pinky_up])
+
+        dist_thumb_index = float(np.linalg.norm(pts[4, :2] - pts[8, :2]))
+        horiz_wave = abs(float(last[8, 0] - first[8, 0])) + abs(float(mid[8, 0] - first[8, 0]))
+        vert_move = float(first[8, 1] - last[8, 1])
+
+        if up_count >= 3 and horiz_wave > 0.25:
+            return "HALO", 0.94
+        if up_count == 0 and dist_thumb_index < 0.25:
+            return "MAKAN", 0.92
+        if up_count == 0 and 0.25 <= dist_thumb_index <= 0.48:
+            return "MINUM", 0.90
+        if not index_up and not middle_up and not ring_up and pinky_up and thumb_out:
+            return "SAMA-SAMA", 0.92
+        if up_count == 0 and thumb_out:
+            return "TOLONG", 0.91
+        if index_up and not middle_up and not ring_up and not pinky_up:
+            return "SAYA", 0.92
+        if up_count >= 3 and vert_move > 0.15:
+            return "SELAMAT PAGI", 0.90
+        return "TERIMA KASIH", 0.91
 
